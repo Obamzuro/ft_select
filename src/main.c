@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/29 22:18:25 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/05/29 22:21:59 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -65,6 +65,7 @@ static int		sel_putchar(int c)
 void			cycle(void)
 {
 	char ch;
+	char *a;
 
 	while (1)
 	{
@@ -75,6 +76,7 @@ void			cycle(void)
 			break ;
 		if (ch == 'w')
 			tputs("qwe", 1, sel_putchar);
+		a = tgoto("al", 0, 0);
 	}
 
 }
