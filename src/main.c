@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/29 22:06:43 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/05/29 22:18:25 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,9 +53,16 @@ void	set_noncanon(void)
 	tty.c_lflag &= ~(ICANON);
 	tty.c_cc[VMIN] = 1;
 	tcsetattr(0, TCSAFLUSH, &tty);
+	ft_printf("%c[2J", 27);
 }
 
-void	cycle(void)
+static int		sel_putchar(int c)
+{
+	write(1, &c, 1);
+	return (0);
+}
+
+void			cycle(void)
 {
 	char ch;
 
@@ -66,6 +73,8 @@ void	cycle(void)
 			break ;
 		if (ch == '\t')
 			break ;
+		if (ch == 'w')
+			tputs("qwe", 1, sel_putchar);
 	}
 
 }
