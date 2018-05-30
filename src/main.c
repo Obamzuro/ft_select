@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/30 14:12:21 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/05/30 14:17:30 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,7 +58,8 @@ struct termios	*set_noncanon(void)
 	char *buffer;
 
 	buffer = (char *)malloc(2048);
-	tputs(tgetstr("ti", &buffer), 1, sel_putchar);
+	tputs(tgetstr("ei", &buffer), 1, sel_putchar);
+//	tputs(tgetstr("ve", &buffer), 1, sel_putchar);
 	return (savetty);
 }
 
