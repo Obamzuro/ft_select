@@ -6,13 +6,14 @@
 #    By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2018/05/23 14:59:44 by obamzuro          #+#    #+#              #
-#    Updated: 2018/05/28 15:24:08 by obamzuro         ###   ########.fr        #
+#    Updated: 2018/05/30 13:11:20 by obamzuro         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = ft_select
 
-SRCNAME = main.c
+SRCNAME = main.c		\
+		  sel_putchar.c	\
 
 HDR = include/ft_select.h
 
@@ -25,7 +26,7 @@ all: $(NAME)
 $(NAME): $(OBJ)
 	make -C libft
 	make -C ftprintf
-	gcc -g $(OBJ) -I include -L libft -lft -L ftprintf -lftprintf -ltermcap -o 1
+	gcc -g $(OBJ) -I include -L libft -lft -L ftprintf -lftprintf -ltermcap -o asd
 
 %.o: %.c $(HDR)
 	gcc -g -c $< -o $@ -I include

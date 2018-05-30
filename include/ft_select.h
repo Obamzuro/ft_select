@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/28 15:07:49 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/28 15:32:02 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/05/30 13:11:00 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,4 +19,6 @@
 # include <stdlib.h>
 # include <stdio.h>
 # include <termcap.h>
+
+int		sel_putchar(int c);
 #endif
