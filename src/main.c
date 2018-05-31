@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/30 14:17:30 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/05/31 21:30:16 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,9 +37,8 @@ void	term_associate(void)
 	}
 }
 
-struct termios	*set_noncanon(void)
+void		set_noncanon(void)
 {
-	struct termios		*savetty;
 	struct termios		tty;
 
 	if (!isatty(0))
@@ -48,72 +47,220 @@ struct termios	*set_noncanon(void)
 		exit(EXIT_FAILURE);
 	}
 
-	savetty = (struct termios *)malloc(sizeof(struct termios));
 	tcgetattr(0, &tty);
-	*savetty = tty;
 	tty.c_lflag &= ~(ICANON|ECHO);
 	tty.c_cc[VMIN] = 1;
 	tty.c_cc[VTIME] = 0;
 	tcsetattr(0, TCSANOW, &tty);
-	char *buffer;
-
-	buffer = (char *)malloc(2048);
-	tputs(tgetstr("ei", &buffer), 1, sel_putchar);
+	tputs(tgetstr("ti", 0), 1, sel_putchar);
+	tputs(tgetstr("vi", 0), 1, sel_putchar);
 //	tputs(tgetstr("ve", &buffer), 1, sel_putchar);
-	return (savetty);
 }
 
-void	print_args(char **argv)
+void	print_files(t_file_list *plistbeg,
+		t_file_list *plistsel)
 {
-	int		i;
+	static t_file_list	*listbeg;
+	static t_file_list	*listsel;
+	t_file_list			*listiter;
+	int					count;
 
-	i = 0;
+	if (plistbeg)
+		listbeg = plistbeg;
+	if (plistsel)
+		listsel = plistsel;
+	if (!listbeg || !listsel)
+		return ;
+	tputs(tgetstr("cl", 0), 1, sel_putchar);
+	listiter = listbeg;
+	count = 1;
+	while (listiter != listbeg || count)
+	{
+		if (listiter->ispressed)
+			ft_printf("%s", tgetstr("mr", 0));
+		if (listiter == listsel)
+			ft_printf("%s%s%s\n", tgetstr("us", 0),
+					listiter->name, tgetstr("ue", 0));
+		else
+			ft_printf("%s\n", listiter->name);
+		listiter = listiter->next;
+		ft_printf(DEFAULT);
+		count = 0;
+	}
+}
+
+void	fill_list(char **argv, t_file_list **listbeg)
+{
+	int				i;
+	t_file_list		*listiter;
+
+	if (argv[1])
+	{
+		*listbeg = malloc(sizeof(t_file_list));
+		(*listbeg)->name = argv[1];
+		(*listbeg)->ispressed = 0;
+	}
+	listiter = *listbeg;
+	i = 1;
 	while (argv[++i])
-		ft_printf("%s\n", argv[i]);
+	{
+		listiter->next = malloc(sizeof(t_file_list));
+		listiter->next->name = argv[i];
+		listiter->next->prev = listiter;
+		listiter->next->ispressed = 0;
+		listiter = listiter->next;
+	}
+	if (listiter)
+	{
+		listiter->next = *listbeg;
+		listiter->next->prev = listiter;
+	}
 }
 
-void			cycle()
+void			press_up(t_file_list *listbeg,
+		t_file_list **listsel)
 {
-	char *buffer;
+	*listsel = (*listsel)->next;
+	print_files(listbeg, *listsel);
+}
 
-	buffer = (char *)malloc(2048);
-	char buf[8];
-	char *a;
-//	tputs(tgetstr("vi", &buffer), 1, sel_putchar);
-	a = tgoto(tgetstr("up", &buffer), 0, 0);
-//	tputs(a, 2, sel_putchar);
+void			press_down(t_file_list *listbeg,
+		t_file_list **listsel)
+{
+	*listsel = (*listsel)->prev;
+	print_files(listbeg, *listsel);
+}
+
+void			press_del(t_file_list **listbeg,
+		t_file_list **listsel)
+{
+	t_file_list		*listnext;
+
+	if ((*listbeg)->next == *listbeg)
+		exit(EXIT_SUCCESS);
+	if (*listsel == *listbeg)
+		*listbeg = (*listbeg)->next;
+	listnext = (*listsel)->next;
+	(*listsel)->next->prev = (*listsel)->prev;
+	(*listsel)->prev->next = (*listsel)->next;
+	free(*listsel);
+	*listsel = listnext;
+	print_files(*listbeg, *listsel);
+}
+
+void			press_space(t_file_list *listbeg,
+		t_file_list **listsel)
+{
+	(*listsel)->ispressed = !(*listsel)->ispressed;
+	(*listsel) = (*listsel)->next;
+	print_files(listbeg, *listsel);
+}
+
+void	fill_signal_handlers();
+void	handle_exit(int sig);
+
+void			press_return(t_file_list *listbeg)
+{
+	int			count;
+	int			firstword;
+	t_file_list	*listiter;
+
+	handle_exit(0);
+	listiter = listbeg;
+	count = 1;
+	firstword = 1;
+	while (listiter != listbeg || count)
+	{
+		if (listiter->ispressed)
+		{
+			if (!firstword)
+				ft_printf(" ");
+			ft_printf("%s", listiter->name);
+			firstword = 0;
+		}
+		listiter = listiter->next;
+		count = 0;
+	}
+	exit(0);
+}
+
+void			cycle(t_file_list **listbeg,
+		t_file_list **listsel)
+{
+	char	buf[8];
+	char	*a;
+
 	while (1)
 	{
 		ft_bzero(buf, sizeof(buf));
 		read(0, buf, sizeof(buf));
-		//ft_printf("\033[2J");
-//		ft_printf("%.2hhx %.2hhx %.2hhx %.2hhx %.2hhx %.2hhx %.2hhx %.2hhx \n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
-//		ft_printf(" %c  %c  %c  %c  %c  %c  %c  %c \n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
-		//fflush(stdout);
-		if (!ft_strcmp(buf, "q"))
-			break ;
-		else if (!ft_strcmp(a, buf))
-			ft_printf("ggag");
-//			break ;
-//		if (ch == '\t')
-//			break ;
-//		if (ch == 'w')
-//			tputs("qwe", 1, sel_putchar);
+		if (!ft_strcmp(buf, ESC))
+			press_return(*listbeg);
+		else if (!ft_strcmp(DOWN, buf))
+			press_down(*listbeg, listsel);
+		else if (!ft_strcmp(UP, buf))
+			press_up(*listbeg, listsel);
+		else if (!ft_strcmp(SPACE, buf))
+			press_space(*listbeg, listsel);
+		else if (!ft_strcmp(DEL, buf))
+			press_del(listbeg, listsel);
 	}
+}
+
+void	handle_exit(int sig)
+{
+	struct termios		tty;
+
+	tcgetattr(0, &tty);
+	tty.c_lflag |= ICANON|ECHO;
+	tcsetattr(0, TCSANOW, &tty);
+	tputs(tgetstr("te", 0), 1, sel_putchar);
+	tputs(tgetstr("ve", 0), 1, sel_putchar);
+}
+
+void	quit_handler(int sig)
+{
+	handle_exit(sig);
+	if (sig != SIGTSTP)
+		exit(0);
+	else
+	{
+		signal(SIGTSTP, SIG_DFL);
+		ioctl(0, TIOCSTI, SUSPEND);
+	}
+}
+
+void	preparation(int sig)
+{
+	set_noncanon();
+	fill_signal_handlers();
+	print_files(0, 0);
+}
+
+void	fill_signal_handlers()
+{
+	signal(SIGINT, quit_handler);
+	signal(SIGQUIT, quit_handler);
+	signal(SIGTSTP, quit_handler);
+	signal(SIGCONT, preparation);
 }
 
 int		main(int argc, char **argv)
 {
-	struct termios		*savetty;
-	char *buf;
+	t_file_list			*listsel;
+	t_file_list			*listbeg;
+	char *a;
 
-	buf = (char *)malloc(2048);
+	listsel = 0;
 	term_associate();
-	savetty = set_noncanon();
-	tputs(tgetstr("cl", &buf), 1, sel_putchar);
-	print_args(argv);
-	cycle();
-	tcsetattr(0, TCSANOW, savetty);
-	free(savetty);
+	fill_list(argv, &listbeg);
+	listsel = listbeg;
+
+	set_noncanon();
+	fill_signal_handlers();
+	print_files(listbeg, listsel);
+
+	cycle(&listbeg, &listsel);
+	handle_exit(0);
 	system("leaks asd");
 }
