@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/05/31 21:30:16 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/01 14:08:47 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,6 +57,64 @@ void		set_noncanon(void)
 //	tputs(tgetstr("ve", &buffer), 1, sel_putchar);
 }
 
+int		find_longest_word(t_file_list *listbeg,
+		int *amfiles)
+{
+	int					flag;
+	static t_file_list	*listiter;
+	int					max;
+	int					cur;
+
+	flag = 1;
+	listiter = listbeg;
+	max = 0;
+	*amfiles = 0;
+	while (listiter != listbeg || flag)
+	{
+		cur = ft_strlen(listiter->name);
+		if (cur > max)
+			max = cur;
+		listiter = listiter->next;
+		flag = 0;
+		++*amfiles;
+	}
+	return (max);
+}
+
+void	print_files_padding(t_file_list *listiter,
+		int maxwordlen)
+{
+	int i;
+	int offset;
+
+	i = -1;
+	offset = maxwordlen + 1 - ft_strlen(listiter->name);
+	while (++i < offset)
+		write(1, " ", 1);
+}
+
+int		get_tty_size(int amfiles, int *cols,
+		int *rows, int maxwordlen)
+{
+	struct winsize	ws;
+
+	*rows = 0;
+	*cols = 0;
+	if (ioctl(0, TIOCGWINSZ, &ws) != 0)
+	{
+		ft_printf("IOCTL ERROR\n");
+		return (1);
+	}
+	*cols = ws.ws_col / (maxwordlen + 1);
+	*rows = amfiles / *cols;
+	if (ws.ws_col < *cols || ws.ws_row < *rows)
+	{
+		ft_printf("NO SPACE\n");
+		return (1);
+	}
+	return (0);
+}
+
 void	print_files(t_file_list *plistbeg,
 		t_file_list *plistsel)
 {
@@ -64,6 +122,10 @@ void	print_files(t_file_list *plistbeg,
 	static t_file_list	*listsel;
 	t_file_list			*listiter;
 	int					count;
+	int					maxwordlen;
+	int					cols;
+	int					rows;
+	int					amfiles;
 
 	if (plistbeg)
 		listbeg = plistbeg;
@@ -71,21 +133,27 @@ void	print_files(t_file_list *plistbeg,
 		listsel = plistsel;
 	if (!listbeg || !listsel)
 		return ;
+	maxwordlen = find_longest_word(listbeg, &amfiles);
 	tputs(tgetstr("cl", 0), 1, sel_putchar);
+	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
+		return ;
 	listiter = listbeg;
 	count = 1;
-	while (listiter != listbeg || count)
+	while (listiter != listbeg || count == 1)
 	{
 		if (listiter->ispressed)
 			ft_printf("%s", tgetstr("mr", 0));
 		if (listiter == listsel)
-			ft_printf("%s%s%s\n", tgetstr("us", 0),
+			ft_printf("%s%s%s", tgetstr("us", 0),
 					listiter->name, tgetstr("ue", 0));
 		else
-			ft_printf("%s\n", listiter->name);
-		listiter = listiter->next;
+			ft_printf("%s", listiter->name);
 		ft_printf(DEFAULT);
-		count = 0;
+		print_files_padding(listiter, maxwordlen);
+		if (count % cols == 0)
+			ft_printf("\n");
+		listiter = listiter->next;
+		++count;
 	}
 }
 
@@ -117,14 +185,14 @@ void	fill_list(char **argv, t_file_list **listbeg)
 	}
 }
 
-void			press_up(t_file_list *listbeg,
+void			press_right(t_file_list *listbeg,
 		t_file_list **listsel)
 {
 	*listsel = (*listsel)->next;
 	print_files(listbeg, *listsel);
 }
 
-void			press_down(t_file_list *listbeg,
+void			press_left(t_file_list *listbeg,
 		t_file_list **listsel)
 {
 	*listsel = (*listsel)->prev;
@@ -156,9 +224,6 @@ void			press_space(t_file_list *listbeg,
 	print_files(listbeg, *listsel);
 }
 
-void	fill_signal_handlers();
-void	handle_exit(int sig);
-
 void			press_return(t_file_list *listbeg)
 {
 	int			count;
@@ -184,6 +249,42 @@ void			press_return(t_file_list *listbeg)
 	exit(0);
 }
 
+void			press_up(t_file_list *listbeg,
+		t_file_list **listsel)
+{
+	int maxwordlen;
+	int amfiles;
+	int rows;
+	int cols;
+	int i;
+
+	maxwordlen = find_longest_word(listbeg, &amfiles);
+	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
+		return ;
+	i = -1;
+	while (++i < cols)
+		*listsel = (*listsel)->prev;
+	print_files(listbeg, *listsel);
+}
+
+void			press_down(t_file_list *listbeg,
+		t_file_list **listsel)
+{
+	int maxwordlen;
+	int amfiles;
+	int rows;
+	int cols;
+	int i;
+
+	maxwordlen = find_longest_word(listbeg, &amfiles);
+	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
+		return ;
+	i = -1;
+	while (++i < cols)
+		*listsel = (*listsel)->next;
+	print_files(listbeg, *listsel);
+}
+
 void			cycle(t_file_list **listbeg,
 		t_file_list **listsel)
 {
@@ -194,15 +295,21 @@ void			cycle(t_file_list **listbeg,
 	{
 		ft_bzero(buf, sizeof(buf));
 		read(0, buf, sizeof(buf));
-		if (!ft_strcmp(buf, ESC))
+		if (!ft_strcmp(ESC, buf))
+			quit_handler(0);
+		else if (!ft_strcmp(ENTER, buf))
 			press_return(*listbeg);
-		else if (!ft_strcmp(DOWN, buf))
-			press_down(*listbeg, listsel);
-		else if (!ft_strcmp(UP, buf))
+		else if (!ft_strcmp(UP, buf) || !ft_strcmp("k", buf))
 			press_up(*listbeg, listsel);
+		else if (!ft_strcmp(DOWN, buf) || !ft_strcmp("j", buf))
+			press_down(*listbeg, listsel);
+		else if (!ft_strcmp(LEFT, buf) || !ft_strcmp("h", buf))
+			press_left(*listbeg, listsel);
+		else if (!ft_strcmp(RIGHT, buf) || !ft_strcmp("l", buf))
+			press_right(*listbeg, listsel);
 		else if (!ft_strcmp(SPACE, buf))
 			press_space(*listbeg, listsel);
-		else if (!ft_strcmp(DEL, buf))
+		else if (!ft_strcmp(DEL, buf) || !ft_strcmp(BACKSPACE, buf))
 			press_del(listbeg, listsel);
 	}
 }
@@ -237,12 +344,18 @@ void	preparation(int sig)
 	print_files(0, 0);
 }
 
+void	winchange(int sig)
+{
+	print_files(0, 0);
+}
+
 void	fill_signal_handlers()
 {
 	signal(SIGINT, quit_handler);
 	signal(SIGQUIT, quit_handler);
 	signal(SIGTSTP, quit_handler);
 	signal(SIGCONT, preparation);
+	signal(SIGWINCH, winchange);
 }
 
 int		main(int argc, char **argv)
