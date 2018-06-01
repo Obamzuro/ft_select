@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/28 15:07:49 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/01 13:49:46 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/01 18:57:58 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 # include <termcap.h>
 # include <signal.h>
 # include <sys/ioctl.h>
+# include <sys/stat.h>
 # define ESC "\x1B"
 # define DOWN "\x1B[B"
 # define UP "\x1B[A"
@@ -33,10 +34,49 @@
 # define BACKSPACE "\x7F"
 # define ENTER "\x0A"
 
+# define ANSI_COLOR_BLACK    "\x1b[30m"
+# define ANSI_COLOR_RED      "\x1b[31m"
+# define ANSI_COLOR_GREEN    "\x1b[32m"
+# define ANSI_COLOR_YELLOW   "\x1b[33m"
+# define ANSI_COLOR_BLUE     "\x1b[34m"
+# define ANSI_COLOR_MAGENTA  "\x1b[35m"
+# define ANSI_COLOR_CYAN     "\x1b[36m"
+# define ANSI_COLOR_WHITE    "\x1b[36m"
+
+# define ANSI_COLOR_BLACKN   "\e[30m"
+# define ANSI_COLOR_REDN     "\e[31m"
+# define ANSI_COLOR_GREENN   "\e[32m"
+# define ANSI_COLOR_YELLOWN  "\e[33m"
+# define ANSI_COLOR_BLUEN    "\e[34m"
+# define ANSI_COLOR_MAGENTAN "\e[35m"
+# define ANSI_COLOR_CYANN    "\e[36m"
+# define ANSI_COLOR_WHITEN   "\e[36m"
+
+# define ANSI_COLOR_BBLACK   "\x1b[40m"
+# define ANSI_COLOR_BRED     "\x1b[41m"
+# define ANSI_COLOR_BGREEN   "\x1b[42m"
+# define ANSI_COLOR_BYELLOW  "\x1b[43m"
+# define ANSI_COLOR_BBLUE    "\x1b[44m"
+# define ANSI_COLOR_BMAGENTA "\x1b[45m"
+# define ANSI_COLOR_BCYAN    "\x1b[46m"
+# define ANSI_COLOR_BWHITE   "\x1b[46m"
+# define ANSI_COLOR_RESET    "\x1b[0m"
+
+# define ANSI_COLOR_BBLACKN   "\e[40m"
+# define ANSI_COLOR_BREDN     "\e[41m"
+# define ANSI_COLOR_BGREENN   "\e[42m"
+# define ANSI_COLOR_BYELLOWN  "\e[43m"
+# define ANSI_COLOR_BBLUEN    "\e[44m"
+# define ANSI_COLOR_BMAGENTAN "\e[45m"
+# define ANSI_COLOR_BCYANN    "\e[46m"
+# define ANSI_COLOR_BWHITEN   "\e[46m"
+
 typedef struct	s_file_list
 {
 	char				*name;
 	int					ispressed;
+	int					row;
+	int					col;
 	struct s_file_list	*prev;
 	struct s_file_list	*next;
 }				t_file_list;
