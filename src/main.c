@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/03 17:05:57 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/03 19:23:15 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,9 +46,8 @@ void		set_noncanon(void)
 		ft_fprintf(2, "stdin not terminal\n");
 		exit(EXIT_FAILURE);
 	}
-
 	tcgetattr(2, &tty);
-	tty.c_lflag &= ~(ICANON|ECHO);
+	tty.c_lflag &= ~(ICANON | ECHO);
 	tty.c_cc[VMIN] = 1;
 	tty.c_cc[VTIME] = 0;
 	tcsetattr(2, TCSANOW, &tty);
@@ -171,6 +170,20 @@ void	print_files_style(t_file_list *listiter,
 	print_color_name(&tempstat);
 }
 
+void	get_cursor_position2(t_file_list *listiter)
+{
+	char	temp;
+
+	read(2, &temp, 1);
+	while (temp >= '0' && temp <= '9')
+	{
+		listiter->col = listiter->col * 10 + (temp - '0');
+		read(2, &temp, 1);
+	}
+	if (temp != 'R')
+		return ;
+}
+
 void	get_cursor_position(t_file_list *listiter)
 {
 	char	temp;
@@ -192,28 +205,52 @@ void	get_cursor_position(t_file_list *listiter)
 	}
 	if (temp != ';')
 		return ;
-	read(2, &temp, 1);
-	while (temp >= '0' && temp <= '9')
-	{
-		listiter->col = listiter->col * 10 + (temp - '0');
-		read(2, &temp, 1);
-	}
-	if (temp != 'R')
+	get_cursor_position2(listiter);
+}
+
+void	print_special_file(t_file_list *listiter,
+		t_file_list *listsel)
+{
+	ft_fprintf(2, tgoto(tgetstr("cm", 0), listiter->col - 1,
+				listiter->row - 1));
+	print_files_style(listiter, listsel);
+	ft_fprintf(2, listiter->name);
+	ft_fprintf(2, DEFAULT);
+}
+
+void	print_files_inner(t_file_list *listbeg,
+		t_file_list *listsel, int maxwordlen, int amfiles)
+{
+	t_file_list		*listiter;
+	int				cols;
+	int				rows;
+	int				count;
+
+	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
+	listiter = listbeg;
+	count = 1;
+	while (listiter != listbeg || count == 1)
+	{
+		get_cursor_position(listiter);
+		print_files_style(listiter, listsel);
+		ft_fprintf(2, listiter->name);
+		ft_fprintf(2, DEFAULT);
+		print_files_padding(listiter, maxwordlen);
+		if (count % cols == 0)
+			ft_fprintf(2, "\n");
+		listiter = listiter->next;
+		++count;
+	}
 }
 
 void	print_files(t_file_list *plistbeg,
-		t_file_list *plistsel, int mode, t_file_list *listiter2)
+		t_file_list *plistsel, int mode, t_file_list *listiter)
 {
 	static t_file_list	*listbeg;
 	static t_file_list	*listsel;
-	t_file_list			*listiter;
-	int					count;
 	int					maxwordlen;
-	int					cols;
-	int					rows;
 	int					amfiles;
-	char				temp;
 
 	if (plistbeg)
 		listbeg = plistbeg;
@@ -223,33 +260,12 @@ void	print_files(t_file_list *plistbeg,
 		return ;
 	if (mode)
 	{
-		ft_fprintf(2, tgoto(tgetstr("cm", 0), listiter2->col - 1,
-					listiter2->row - 1));
-		print_files_style(listiter2, listsel);
-		ft_fprintf(2, listiter2->name);
-		ft_fprintf(2, DEFAULT);
+		print_special_file(listiter, listsel);
 		return ;
 	}
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	ft_fprintf(2, tgetstr("cl", 0));
-	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
-		return ;
-	listiter = listbeg;
-	count = 1;
-	temp = 0;
-	while (listiter != listbeg || count == 1)
-	{
-		get_cursor_position(listiter);
-		print_files_style(listiter, listsel);
-		ft_fprintf(2, listiter->name);
-		//ft_fprintf(2, "%d %d", listiter->row, listiter->col);
-		ft_fprintf(2, DEFAULT);
-		print_files_padding(listiter, maxwordlen);
-		if (count % cols == 0)
-			ft_fprintf(2, "\n");
-		listiter = listiter->next;
-		++count;
-	}
+	print_files_inner(listbeg, listsel, maxwordlen, amfiles);
 }
 
 void	fill_list(char **argv, t_file_list **listbeg)
@@ -260,17 +276,17 @@ void	fill_list(char **argv, t_file_list **listbeg)
 	if (argv[1])
 	{
 		*listbeg = malloc(sizeof(t_file_list));
+		ft_bzero(*listbeg, sizeof(t_file_list));
 		(*listbeg)->name = argv[1];
-		(*listbeg)->ispressed = 0;
 	}
 	listiter = *listbeg;
 	i = 1;
 	while (argv[++i])
 	{
 		listiter->next = malloc(sizeof(t_file_list));
+		ft_bzero(listiter->next, sizeof(t_file_list));
 		listiter->next->name = argv[i];
 		listiter->next->prev = listiter;
-		listiter->next->ispressed = 0;
 		listiter = listiter->next;
 	}
 	if (listiter)
@@ -300,6 +316,7 @@ void			press_del(t_file_list **listbeg,
 		t_file_list **listsel)
 {
 	t_file_list		*listnext;
+	int			count;
 
 	if ((*listbeg)->next == *listbeg)
 		exit(EXIT_SUCCESS);
@@ -350,19 +367,17 @@ void			press_return(t_file_list *listbeg)
 void			press_up(t_file_list *listbeg,
 		t_file_list **listsel)
 {
-	int maxwordlen;
-	int amfiles;
-	int rows;
-	int cols;
-	int i;
+	int				maxwordlen;
+	int				amfiles;
+	int				rows;
+	int				cols;
 	t_file_list		*listiter;
 
 	listiter = *listsel;
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
-	i = -1;
-	while (++i < cols)
+	while (cols--)
 		*listsel = (*listsel)->prev;
 	print_files(0, *listsel, 1, listiter);
 	print_files(0, *listsel, 1, *listsel);
@@ -371,19 +386,17 @@ void			press_up(t_file_list *listbeg,
 void			press_down(t_file_list *listbeg,
 		t_file_list **listsel)
 {
-	int maxwordlen;
-	int amfiles;
-	int rows;
-	int cols;
-	int i;
+	int				maxwordlen;
+	int				amfiles;
+	int				rows;
+	int				cols;
 	t_file_list		*listiter;
 
 	listiter = *listsel;
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
-	i = -1;
-	while (++i < cols)
+	while (cols--)
 		*listsel = (*listsel)->next;
 	print_files(0, *listsel, 1, listiter);
 	print_files(0, *listsel, 1, *listsel);
@@ -423,7 +436,7 @@ void	handle_exit(int sig)
 	struct termios		tty;
 
 	tcgetattr(2, &tty);
-	tty.c_lflag |= ICANON|ECHO;
+	tty.c_lflag |= ICANON | ECHO;
 	tcsetattr(2, TCSANOW, &tty);
 	ft_fprintf(2, tgetstr("te", 0));
 	ft_fprintf(2, tgetstr("ve", 0));
@@ -453,7 +466,7 @@ void	winchange(int sig)
 	print_files(0, 0, 0, 0);
 }
 
-void	fill_signal_handlers()
+void	fill_signal_handlers(void)
 {
 	signal(SIGINT, quit_handler);
 	signal(SIGQUIT, quit_handler);
@@ -468,18 +481,14 @@ int		main(int argc, char **argv)
 {
 	t_file_list			*listsel;
 	t_file_list			*listbeg;
-	char *a;
 
 	listsel = 0;
 	term_associate();
 	fill_list(argv, &listbeg);
 	listsel = listbeg;
-
 	set_noncanon();
 	fill_signal_handlers();
 	print_files(listbeg, listsel, 0, 0);
-
 	cycle(&listbeg, &listsel);
 	handle_exit(0);
-	system("leaks asd");
 }
