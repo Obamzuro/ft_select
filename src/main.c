@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/01 19:02:27 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/03 17:05:57 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,7 +54,6 @@ void		set_noncanon(void)
 	tcsetattr(2, TCSANOW, &tty);
 	ft_fprintf(2, tgetstr("ti", 0));
 	ft_fprintf(2, tgetstr("vi", 0));
-//	tputs(tgetstr("ve", &buffer), 1, sel_putchar);
 }
 
 int		find_longest_word(t_file_list *listbeg,
@@ -107,7 +106,10 @@ int		get_tty_size(int amfiles, int *cols,
 	}
 	*cols = ws.ws_col / (maxwordlen + 1);
 	if (!*cols)
+	{
+		ft_fprintf(2, "NO SPACE\n");
 		return (1);
+	}
 	*rows = amfiles / *cols;
 	if (ws.ws_col < *cols || ws.ws_row < *rows)
 	{
@@ -169,8 +171,39 @@ void	print_files_style(t_file_list *listiter,
 	print_color_name(&tempstat);
 }
 
+void	get_cursor_position(t_file_list *listiter)
+{
+	char	temp;
+
+	listiter->row = 0;
+	listiter->col = 0;
+	write(2, "\x1B[6n", 4);
+	read(2, &temp, 1);
+	if (temp != '\x1b')
+		return ;
+	read(2, &temp, 1);
+	if (temp != '[')
+		return ;
+	read(2, &temp, 1);
+	while (temp >= '0' && temp <= '9')
+	{
+		listiter->row = listiter->row * 10 + (temp - '0');
+		read(2, &temp, 1);
+	}
+	if (temp != ';')
+		return ;
+	read(2, &temp, 1);
+	while (temp >= '0' && temp <= '9')
+	{
+		listiter->col = listiter->col * 10 + (temp - '0');
+		read(2, &temp, 1);
+	}
+	if (temp != 'R')
+		return ;
+}
+
 void	print_files(t_file_list *plistbeg,
-		t_file_list *plistsel)
+		t_file_list *plistsel, int mode, t_file_list *listiter2)
 {
 	static t_file_list	*listbeg;
 	static t_file_list	*listsel;
@@ -188,37 +221,28 @@ void	print_files(t_file_list *plistbeg,
 		listsel = plistsel;
 	if (!listbeg || !listsel)
 		return ;
+	if (mode)
+	{
+		ft_fprintf(2, tgoto(tgetstr("cm", 0), listiter2->col - 1,
+					listiter2->row - 1));
+		print_files_style(listiter2, listsel);
+		ft_fprintf(2, listiter2->name);
+		ft_fprintf(2, DEFAULT);
+		return ;
+	}
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	ft_fprintf(2, tgetstr("cl", 0));
 	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
-	cols = 12;
-	rows = 1;
 	listiter = listbeg;
 	count = 1;
 	temp = 0;
 	while (listiter != listbeg || count == 1)
 	{
+		get_cursor_position(listiter);
 		print_files_style(listiter, listsel);
-		ft_fprintf(2, "\x1B[6n");
-		read(0, &temp, 1);
-		if (temp != '\x1b')
-			return ;
-		read(0, &temp, 1);
-		if (temp != '[')
-			return ;
-		read(0, &temp, 1);
-		listiter->row = temp;
-		read(0, &temp, 1);
-		if (temp != ';')
-			return ;
-		read(0, &temp, 1);
-		listiter->col = temp;
-		read(0, &temp, 1);
-		if (temp != 'R')
-			return ;
 		ft_fprintf(2, listiter->name);
-		ft_fprintf(2, "%d %d", listiter->row, listiter->col);
+		//ft_fprintf(2, "%d %d", listiter->row, listiter->col);
 		ft_fprintf(2, DEFAULT);
 		print_files_padding(listiter, maxwordlen);
 		if (count % cols == 0)
@@ -260,14 +284,16 @@ void			press_right(t_file_list *listbeg,
 		t_file_list **listsel)
 {
 	*listsel = (*listsel)->next;
-	print_files(listbeg, *listsel);
+	print_files(0, *listsel, 1, (*listsel)->prev);
+	print_files(0, *listsel, 1, *listsel);
 }
 
 void			press_left(t_file_list *listbeg,
 		t_file_list **listsel)
 {
 	*listsel = (*listsel)->prev;
-	print_files(listbeg, *listsel);
+	print_files(0, *listsel, 1, (*listsel)->next);
+	print_files(0, *listsel, 1, *listsel);
 }
 
 void			press_del(t_file_list **listbeg,
@@ -284,7 +310,7 @@ void			press_del(t_file_list **listbeg,
 	(*listsel)->prev->next = (*listsel)->next;
 	free(*listsel);
 	*listsel = listnext;
-	print_files(*listbeg, *listsel);
+	print_files(*listbeg, *listsel, 0, 0);
 }
 
 void			press_space(t_file_list *listbeg,
@@ -292,7 +318,8 @@ void			press_space(t_file_list *listbeg,
 {
 	(*listsel)->ispressed = !(*listsel)->ispressed;
 	(*listsel) = (*listsel)->next;
-	print_files(listbeg, *listsel);
+	print_files(0, *listsel, 1, (*listsel)->prev);
+	print_files(0, *listsel, 1, *listsel);
 }
 
 void			press_return(t_file_list *listbeg)
@@ -328,14 +355,17 @@ void			press_up(t_file_list *listbeg,
 	int rows;
 	int cols;
 	int i;
+	t_file_list		*listiter;
 
+	listiter = *listsel;
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
 	i = -1;
 	while (++i < cols)
 		*listsel = (*listsel)->prev;
-	print_files(listbeg, *listsel);
+	print_files(0, *listsel, 1, listiter);
+	print_files(0, *listsel, 1, *listsel);
 }
 
 void			press_down(t_file_list *listbeg,
@@ -346,14 +376,17 @@ void			press_down(t_file_list *listbeg,
 	int rows;
 	int cols;
 	int i;
+	t_file_list		*listiter;
 
+	listiter = *listsel;
 	maxwordlen = find_longest_word(listbeg, &amfiles);
 	if (get_tty_size(amfiles, &cols, &rows, maxwordlen))
 		return ;
 	i = -1;
 	while (++i < cols)
 		*listsel = (*listsel)->next;
-	print_files(listbeg, *listsel);
+	print_files(0, *listsel, 1, listiter);
+	print_files(0, *listsel, 1, *listsel);
 }
 
 void			cycle(t_file_list **listbeg,
@@ -412,12 +445,12 @@ void	preparation(int sig)
 {
 	set_noncanon();
 	fill_signal_handlers();
-	print_files(0, 0);
+	print_files(0, 0, 0, 0);
 }
 
 void	winchange(int sig)
 {
-	print_files(0, 0);
+	print_files(0, 0, 0, 0);
 }
 
 void	fill_signal_handlers()
@@ -444,7 +477,7 @@ int		main(int argc, char **argv)
 
 	set_noncanon();
 	fill_signal_handlers();
-	print_files(listbeg, listsel);
+	print_files(listbeg, listsel, 0, 0);
 
 	cycle(&listbeg, &listsel);
 	handle_exit(0);
