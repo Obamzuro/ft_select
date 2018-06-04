@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/04 17:06:24 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/04 18:26:09 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,8 +115,6 @@ int		get_tty_size(int amfiles, int *cols,
 		ft_fprintf(2, "NO SPACE\n");
 		return (1);
 	}
-//	*rows = 25;
-//	*cols = 12;
 	return (0);
 }
 
@@ -169,7 +167,8 @@ void	print_files_style(t_file_list *listiter,
 		ft_fprintf(2, tgetstr("us", 0));
 	if (lstat(listiter->name, &tempstat) == -1)
 		ft_fprintf(2, ANSI_COLOR_YELLOW);
-	print_color_name(&tempstat);
+	else
+		print_color_name(&tempstat);
 }
 
 void	get_cursor_position2(t_file_list *listiter)
@@ -217,7 +216,6 @@ void	print_special_file(t_file_list *listiter,
 				listiter->row - 1));
 	print_files_style(listiter, listsel);
 	ft_fprintf(2, listiter->name);
-	//ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
 	ft_fprintf(2, DEFAULT);
 }
 
@@ -238,7 +236,6 @@ void	print_files_inner(t_file_list *listbeg,
 		get_cursor_position(listiter);
 		print_files_style(listiter, listsel);
 		ft_fprintf(2, listiter->name);
-		//ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
 		ft_fprintf(2, DEFAULT);
 		print_files_padding(listiter, maxwordlen);
 		if (count % cols == 0)
@@ -332,16 +329,19 @@ void			press_left(t_file_list *listbeg,
 	}
 }
 
-void			press_del(t_file_list **listbeg,
+int				press_del(t_file_list **listbeg,
 		t_file_list **listsel)
 {
 	t_file_list		*listnext;
-	int			count;
+	int				count;
 
 	if ((*listbeg)->next == *listbeg)
+	{
+		handle_exit(0);
 		exit(EXIT_SUCCESS);
-//	if (*listsel == *listbeg)
-//		*listbeg = (*listbeg)->next;
+	}
+	if (*listsel == *listbeg)
+		*listbeg = (*listbeg)->next;
 	listnext = (*listsel)->next;
 	(*listsel)->next->prev = (*listsel)->prev;
 	(*listsel)->prev->next = (*listsel)->next;
@@ -352,6 +352,7 @@ void			press_del(t_file_list **listbeg,
 	*listsel = listnext;
 	print_files(*listbeg, *listsel, 0, 0);
 	count = 0;
+	return (1);
 }
 
 void			press_space(t_file_list *listbeg,
@@ -448,7 +449,6 @@ void			press_down(t_file_list *listbeg,
 		print_files(listbeg, *listsel, 0, 0);
 		*flag = 0;
 	}
-
 }
 
 void			cycle(t_file_list **listbeg,
@@ -477,10 +477,7 @@ void			cycle(t_file_list **listbeg,
 		else if (!ft_strcmp(SPACE, buf))
 			press_space(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(DEL, buf) || !ft_strcmp(BACKSPACE, buf))
-		{
-			press_del(listbeg, listsel);
-			flag = 1;
-		}
+			press_del(listbeg, listsel) && (flag = 1);
 	}
 }
 
@@ -535,6 +532,11 @@ int		main(int argc, char **argv)
 	t_file_list			*listsel;
 	t_file_list			*listbeg;
 
+	if (argc == 1)
+	{
+		ft_fprintf(2, "ft_select:\nusage: ft_select [file ...]\n");
+		return (1);
+	}
 	listsel = 0;
 	term_associate();
 	fill_list(argv, &listbeg);
