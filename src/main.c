@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/04 16:22:12 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/04 17:06:24 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,8 +115,8 @@ int		get_tty_size(int amfiles, int *cols,
 		ft_fprintf(2, "NO SPACE\n");
 		return (1);
 	}
-	*rows = 25;
-	*cols = 12;
+//	*rows = 25;
+//	*cols = 12;
 	return (0);
 }
 
@@ -217,6 +217,7 @@ void	print_special_file(t_file_list *listiter,
 				listiter->row - 1));
 	print_files_style(listiter, listsel);
 	ft_fprintf(2, listiter->name);
+	//ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
 	ft_fprintf(2, DEFAULT);
 }
 
@@ -237,7 +238,7 @@ void	print_files_inner(t_file_list *listbeg,
 		get_cursor_position(listiter);
 		print_files_style(listiter, listsel);
 		ft_fprintf(2, listiter->name);
-		ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
+		//ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
 		ft_fprintf(2, DEFAULT);
 		print_files_padding(listiter, maxwordlen);
 		if (count % cols == 0)
@@ -300,19 +301,35 @@ void	fill_list(char **argv, t_file_list **listbeg)
 }
 
 void			press_right(t_file_list *listbeg,
-		t_file_list **listsel)
+		t_file_list **listsel, int *flag)
 {
 	*listsel = (*listsel)->next;
-	print_files(0, *listsel, 1, (*listsel)->prev);
-	print_files(0, *listsel, 1, *listsel);
+	if (!*flag)
+	{
+		print_files(0, *listsel, 1, (*listsel)->prev);
+		print_files(0, *listsel, 1, *listsel);
+	}
+	else
+	{
+		print_files(listbeg, *listsel, 0, 0);
+		*flag = 0;
+	}
 }
 
 void			press_left(t_file_list *listbeg,
-		t_file_list **listsel)
+		t_file_list **listsel, int *flag)
 {
 	*listsel = (*listsel)->prev;
-	print_files(0, *listsel, 1, (*listsel)->next);
-	print_files(0, *listsel, 1, *listsel);
+	if (!*flag)
+	{
+		print_files(0, *listsel, 1, (*listsel)->next);
+		print_files(0, *listsel, 1, *listsel);
+	}
+	else
+	{
+		print_files(listbeg, *listsel, 0, 0);
+		*flag = 0;
+	}
 }
 
 void			press_del(t_file_list **listbeg,
@@ -338,12 +355,20 @@ void			press_del(t_file_list **listbeg,
 }
 
 void			press_space(t_file_list *listbeg,
-		t_file_list **listsel)
+		t_file_list **listsel, int *flag)
 {
 	(*listsel)->ispressed = !(*listsel)->ispressed;
 	(*listsel) = (*listsel)->next;
-	print_files(0, *listsel, 1, (*listsel)->prev);
-	print_files(0, *listsel, 1, *listsel);
+	if (!*flag)
+	{
+		print_files(0, *listsel, 1, (*listsel)->prev);
+		print_files(0, *listsel, 1, *listsel);
+	}
+	else
+	{
+		print_files(listbeg, *listsel, 0, 0);
+		*flag = 0;
+	}
 }
 
 void			press_return(t_file_list *listbeg)
@@ -372,7 +397,7 @@ void			press_return(t_file_list *listbeg)
 }
 
 void			press_up(t_file_list *listbeg,
-		t_file_list **listsel)
+		t_file_list **listsel, int *flag)
 {
 	int				maxwordlen;
 	int				amfiles;
@@ -386,12 +411,20 @@ void			press_up(t_file_list *listbeg,
 		return ;
 	while (cols--)
 		*listsel = (*listsel)->prev;
-	print_files(0, *listsel, 1, listiter);
-	print_files(0, *listsel, 1, *listsel);
+	if (!*flag)
+	{
+		print_files(0, *listsel, 1, listiter);
+		print_files(0, *listsel, 1, *listsel);
+	}
+	else
+	{
+		print_files(listbeg, *listsel, 0, 0);
+		*flag = 0;
+	}
 }
 
 void			press_down(t_file_list *listbeg,
-		t_file_list **listsel)
+		t_file_list **listsel, int *flag)
 {
 	int				maxwordlen;
 	int				amfiles;
@@ -405,16 +438,26 @@ void			press_down(t_file_list *listbeg,
 		return ;
 	while (cols--)
 		*listsel = (*listsel)->next;
-	print_files(0, *listsel, 1, listiter);
-	print_files(0, *listsel, 1, *listsel);
+	if (!*flag)
+	{
+		print_files(0, *listsel, 1, listiter);
+		print_files(0, *listsel, 1, *listsel);
+	}
+	else
+	{
+		print_files(listbeg, *listsel, 0, 0);
+		*flag = 0;
+	}
+
 }
 
 void			cycle(t_file_list **listbeg,
 		t_file_list **listsel)
 {
 	char	buf[8];
-	char	*a;
+	int		flag;
 
+	flag = 0;
 	while (1)
 	{
 		ft_bzero(buf, sizeof(buf));
@@ -424,17 +467,20 @@ void			cycle(t_file_list **listbeg,
 		else if (!ft_strcmp(ENTER, buf))
 			press_return(*listbeg);
 		else if (!ft_strcmp(UP, buf) || !ft_strcmp("k", buf))
-			press_up(*listbeg, listsel);
+			press_up(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(DOWN, buf) || !ft_strcmp("j", buf))
-			press_down(*listbeg, listsel);
+			press_down(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(LEFT, buf) || !ft_strcmp("h", buf))
-			press_left(*listbeg, listsel);
+			press_left(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(RIGHT, buf) || !ft_strcmp("l", buf))
-			press_right(*listbeg, listsel);
+			press_right(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(SPACE, buf))
-			press_space(*listbeg, listsel);
+			press_space(*listbeg, listsel, &flag);
 		else if (!ft_strcmp(DEL, buf) || !ft_strcmp(BACKSPACE, buf))
+		{
 			press_del(listbeg, listsel);
+			flag = 1;
+		}
 	}
 }
 
