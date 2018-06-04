@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/03 19:55:17 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/04 16:17:50 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,7 @@ void		set_noncanon(void)
 		exit(EXIT_FAILURE);
 	}
 	tcgetattr(2, &tty);
-	tty.c_lflag &= ~(ICANON | ECHO);
+	tty.c_lflag &= ~(ICANON | ECHO | CREAD);
 	tty.c_cc[VMIN] = 1;
 	tty.c_cc[VTIME] = 0;
 	tcsetattr(2, TCSANOW, &tty);
@@ -80,7 +80,7 @@ int		find_longest_word(t_file_list *listbeg,
 }
 
 void	print_files_padding(t_file_list *listiter,
-		int maxwordlen, char *line, int cur)
+		int maxwordlen)
 {
 	int i;
 	int offset;
@@ -88,7 +88,7 @@ void	print_files_padding(t_file_list *listiter,
 	i = -1;
 	offset = maxwordlen + 1 - ft_strlen(listiter->name);
 	while (++i < offset)
-		cur = ft_snprintf(line, cur, " ");
+		write(2, " ", 1);
 }
 
 int		get_tty_size(int amfiles, int *cols,
@@ -115,59 +115,61 @@ int		get_tty_size(int amfiles, int *cols,
 		ft_fprintf(2, "NO SPACE\n");
 		return (1);
 	}
+	*rows = 25;
+	*cols = 12;
 	return (0);
 }
 
-static void		print_color_name_dir(struct stat *tempstat, char *line, int cur)
+static void		print_color_name_dir(struct stat *tempstat)
 {
 	if (tempstat->st_mode & 02 && tempstat->st_mode & 01000)
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BGREEN);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BGREEN);
 	else if (tempstat->st_mode & 02 && !(tempstat->st_mode & 01000))
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BYELLOWN);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BYELLOWN);
 	else
-		cur = ft_snprintf(line, cur, ANSI_COLOR_BLUE);
+		ft_fprintf(2, ANSI_COLOR_BLUE);
 }
 
-static void		print_color_name_exec(struct stat *tempstat, char *line, int cur)
+static void		print_color_name_exec(struct stat *tempstat)
 {
 	if (tempstat->st_mode & 04000)
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BRED);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BRED);
 	else if (tempstat->st_mode & 02000)
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BCYAN);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLACK, ANSI_COLOR_BCYAN);
 	else
-		cur = ft_snprintf(line, cur, ANSI_COLOR_RED);
+		ft_fprintf(2, ANSI_COLOR_RED);
 }
 
-void			print_color_name(struct stat *tempstat, char *line, int cur)
+void			print_color_name(struct stat *tempstat)
 {
 	if (S_ISDIR(tempstat->st_mode))
-		print_color_name_dir(tempstat, line, cur);
+		print_color_name_dir(tempstat);
 	else if (S_ISLNK(tempstat->st_mode))
-		cur = ft_snprintf(line, cur, ANSI_COLOR_MAGENTA);
+		ft_fprintf(2, ANSI_COLOR_MAGENTA);
 	else if (S_ISSOCK(tempstat->st_mode))
-		cur = ft_snprintf(line, cur, ANSI_COLOR_GREENN);
+		ft_fprintf(2, ANSI_COLOR_GREENN);
 	else if (S_ISFIFO(tempstat->st_mode))
-		cur = ft_snprintf(line, cur, ANSI_COLOR_YELLOWN);
+		ft_fprintf(2, ANSI_COLOR_YELLOWN);
 	else if (S_ISBLK(tempstat->st_mode))
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLUE, ANSI_COLOR_BCYAN);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLUE, ANSI_COLOR_BCYAN);
 	else if (S_ISCHR(tempstat->st_mode))
-		cur = ft_snprintf(line, cur, "%s%s", ANSI_COLOR_BLUE, ANSI_COLOR_BYELLOWN);
+		ft_fprintf(2, "%s%s", ANSI_COLOR_BLUE, ANSI_COLOR_BYELLOWN);
 	else if (tempstat->st_mode & 0100)
-		print_color_name_exec(tempstat, line, cur);
+		print_color_name_exec(tempstat);
 }
 
 void	print_files_style(t_file_list *listiter,
-		t_file_list *listsel, char *line, int cur)
+		t_file_list *listsel)
 {
 	struct stat		tempstat;
 
 	if (listiter->ispressed)
-		cur = ft_snprintf(line, cur, tgetstr("mr", 0));
+		ft_fprintf(2, tgetstr("mr", 0));
 	if (listiter == listsel)
-		cur = ft_snprintf(line, cur, tgetstr("us", 0));
+		ft_fprintf(2, tgetstr("us", 0));
 	if (lstat(listiter->name, &tempstat) == -1)
-		cur = ft_snprintf(line, cur, ANSI_COLOR_YELLOW);
-	print_color_name(&tempstat, line, cur);
+		ft_fprintf(2, ANSI_COLOR_YELLOW);
+	print_color_name(&tempstat);
 }
 
 void	get_cursor_position2(t_file_list *listiter)
@@ -213,14 +215,13 @@ void	print_special_file(t_file_list *listiter,
 {
 	ft_fprintf(2, tgoto(tgetstr("cm", 0), listiter->col - 1,
 				listiter->row - 1));
-	//print_files_style(listiter, listsel);
+	print_files_style(listiter, listsel);
 	ft_fprintf(2, listiter->name);
 	ft_fprintf(2, DEFAULT);
 }
 
 void	print_files_inner(t_file_list *listbeg,
-		t_file_list *listsel, int maxwordlen, int amfiles,
-		char *line, int cur)
+		t_file_list *listsel, int maxwordlen, int amfiles)
 {
 	t_file_list		*listiter;
 	int				cols;
@@ -234,12 +235,13 @@ void	print_files_inner(t_file_list *listbeg,
 	while (listiter != listbeg || count == 1)
 	{
 		get_cursor_position(listiter);
-		print_files_style(listiter, listsel, line, cur);
-		cur = ft_snprintf(line, cur, listiter->name);
-		cur = ft_snprintf(line, cur, DEFAULT);
-		print_files_padding(listiter, maxwordlen, line, cur);
+		print_files_style(listiter, listsel);
+		ft_fprintf(2, listiter->name);
+		ft_fprintf(2, " %d %d ", listiter->row, listiter->col);
+		ft_fprintf(2, DEFAULT);
+		print_files_padding(listiter, maxwordlen);
 		if (count % cols == 0)
-			cur = ft_snprintf(line, cur, "\n");
+			ft_fprintf(2, "\n");
 		listiter = listiter->next;
 		++count;
 	}
@@ -252,8 +254,6 @@ void	print_files(t_file_list *plistbeg,
 	static t_file_list	*listsel;
 	int					maxwordlen;
 	int					amfiles;
-	char				*line;
-	int					cur;
 
 	if (plistbeg)
 		listbeg = plistbeg;
@@ -267,12 +267,8 @@ void	print_files(t_file_list *plistbeg,
 		return ;
 	}
 	maxwordlen = find_longest_word(listbeg, &amfiles);
-	line = malloc(10000);
-	ft_bzero(line, 10000);
-	cur = ft_snprintf(line, cur, tgetstr("cl", 0));
-	print_files_inner(listbeg, listsel, maxwordlen, amfiles, line, cur);
-	ft_fprintf(2, line);
-	free(line);
+	ft_fprintf(2, tgetstr("cl", 0));
+	print_files_inner(listbeg, listsel, maxwordlen, amfiles);
 }
 
 void	fill_list(char **argv, t_file_list **listbeg)
@@ -327,14 +323,18 @@ void			press_del(t_file_list **listbeg,
 
 	if ((*listbeg)->next == *listbeg)
 		exit(EXIT_SUCCESS);
-	if (*listsel == *listbeg)
-		*listbeg = (*listbeg)->next;
+//	if (*listsel == *listbeg)
+//		*listbeg = (*listbeg)->next;
 	listnext = (*listsel)->next;
 	(*listsel)->next->prev = (*listsel)->prev;
 	(*listsel)->prev->next = (*listsel)->next;
+	(*listsel)->row = 0;
+	(*listsel)->col = 0;
 	free(*listsel);
+	usleep(10000);
 	*listsel = listnext;
 	print_files(*listbeg, *listsel, 0, 0);
+	count = 0;
 }
 
 void			press_space(t_file_list *listbeg,
@@ -413,6 +413,7 @@ void			cycle(t_file_list **listbeg,
 		t_file_list **listsel)
 {
 	char	buf[8];
+	char	*a;
 
 	while (1)
 	{
