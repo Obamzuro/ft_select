@@ -6,7 +6,7 @@
 /*   By: obamzuro <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2018/05/23 15:19:16 by obamzuro          #+#    #+#             */
-/*   Updated: 2018/06/05 12:41:35 by obamzuro         ###   ########.fr       */
+/*   Updated: 2018/06/05 12:43:27 by obamzuro         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,9 +18,9 @@ void	cycle(t_file_list **listbeg,
 	char	buf[8];
 	int		flag;
 
-	flag = 0;
 	while (1)
 	{
+		flag = 1;
 		ft_bzero(buf, sizeof(buf));
 		read(0, buf, sizeof(buf));
 		if (!ft_strcmp(ESC, buf))
